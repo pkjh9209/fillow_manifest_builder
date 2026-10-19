@@ -1,0 +1,14 @@
+{
+  "id": "fur-bookshelf-00087",
+  "name": { "ko": "책장 04", "en": "black metal ladder shelf" },
+  "desc": { "ko": "책장 - PixelLab 오브젝트 + 뒷면(PixelLab 이미지 편집). 앞·뒤 + 좌우 반전 = 4방향", "en": "black metal ladder shelf - front + PixelLab-edited back, 4 directions with flip" },
+  "category": "furniture",
+  "type": "bookshelf",
+  "acquisition": "default",
+  "qty": 1,
+  "w": 3,
+  "h": 2,
+  "flippable": true,
+  "back": "fur-bookshelf-00087_back.png",
+  "pixellab": { "object_id": "2b3d8ed9-9508-4303-babb-4186c946159c" }
+}

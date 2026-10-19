@@ -1,0 +1,22 @@
+{
+  "id": "fur-dresser-00105",
+  "name": {
+    "ko": "서랍장 02",
+    "en": "dresser with a lamp"
+  },
+  "desc": {
+    "ko": "서랍장 - PixelLab 오브젝트 + 뒷면(PixelLab 이미지 편집). 앞·뒤 + 좌우 반전 = 4방향",
+    "en": "dresser with a lamp - front + PixelLab-edited back, 4 directions with flip"
+  },
+  "category": "furniture",
+  "type": "dresser",
+  "acquisition": "default",
+  "qty": 1,
+  "w": 3,
+  "h": 2,
+  "flippable": true,
+  "back": "fur-dresser-00105_back.png",
+  "pixellab": {
+    "object_id": "1d997c49-ea99-42af-aea0-e69115f94d6a"
+  }
+}

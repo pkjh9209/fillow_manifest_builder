@@ -1,0 +1,14 @@
+{
+  "id": "fur-desk-00050",
+  "name": { "ko": "책상 03", "en": "long writing desk" },
+  "desc": { "ko": "책상 - PixelLab 오브젝트 + 뒷면(PixelLab 이미지 편집). 앞·뒤 + 좌우 반전 = 4방향", "en": "long writing desk - front + PixelLab-edited back, 4 directions with flip" },
+  "category": "furniture",
+  "type": "desk",
+  "acquisition": "default",
+  "qty": 1,
+  "w": 6,
+  "h": 3,
+  "flippable": true,
+  "back": "fur-desk-00050_back.png",
+  "pixellab": { "object_id": "86a826ce-c2bf-4419-9f06-22b25c63d866" }
+}

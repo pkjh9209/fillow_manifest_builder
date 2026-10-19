@@ -1,0 +1,14 @@
+{
+  "id": "fur-desk-00053",
+  "name": { "ko": "책상 06", "en": "long white minimal desk" },
+  "desc": { "ko": "책상 - PixelLab 오브젝트 + 뒷면(PixelLab 이미지 편집). 앞·뒤 + 좌우 반전 = 4방향", "en": "long white minimal desk - front + PixelLab-edited back, 4 directions with flip" },
+  "category": "furniture",
+  "type": "desk",
+  "acquisition": "default",
+  "qty": 1,
+  "w": 7,
+  "h": 2,
+  "flippable": true,
+  "back": "fur-desk-00053_back.png",
+  "pixellab": { "object_id": "5eba798b-1a6f-4f15-81d9-30fdc02d6328" }
+}

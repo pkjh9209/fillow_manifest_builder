@@ -1,0 +1,14 @@
+{
+  "id": "fur-sofa-00027",
+  "name": { "ko": "소파 01", "en": "two-seat sofa" },
+  "desc": { "ko": "소파 - PixelLab 오브젝트 + 뒷면(PixelLab 이미지 편집). 앞·뒤 + 좌우 반전 = 4방향", "en": "two-seat sofa - front + PixelLab-edited back, 4 directions with flip" },
+  "category": "furniture",
+  "type": "sofa",
+  "acquisition": "default",
+  "qty": 1,
+  "w": 6,
+  "h": 3,
+  "flippable": true,
+  "back": "fur-sofa-00027_back.png",
+  "pixellab": { "object_id": "57300733-0b26-4c58-90e9-786b653b288c" }
+}

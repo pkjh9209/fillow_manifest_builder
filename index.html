@@ -143,7 +143,8 @@
   .chips{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 4px}
   .chip2{display:flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:12px;padding:2px 6px 2px 3px;font-size:11px}
   .chip2 .sw{width:14px;height:14px;border-radius:50%;border:1px solid var(--line)}
-  .chip2 input[type=radio]{margin:0;accent-color:var(--accent);cursor:pointer}
+  .chip2 input[type=radio],.chip2 input[type=checkbox]{margin:0;accent-color:var(--accent);cursor:pointer}
+  .chip2.unknown{border-style:dashed;color:var(--warn)}
   .chip2 button{border:0;background:none;color:var(--err);cursor:pointer;padding:0 2px;font-size:12px}
 
   /* ── 출력 ── */
@@ -196,6 +197,38 @@
   .toast.show{opacity:1}
   .toast.bad{border-color:var(--err)}
   @media (prefers-reduced-motion: reduce){ .toast{transition:none} }
+  /* ── 받은 에셋 (서버 모드) ── */
+  #btnInbox b{display:inline-block;min-width:18px;margin-left:4px;padding:0 5px;border-radius:9px;background:var(--accent);color:#06201d;font-size:11px}
+  #inbox{
+    position:fixed;top:47px;left:0;bottom:0;width:320px;z-index:50;display:flex;flex-direction:column;
+    background:var(--panel);border-right:1px solid var(--line);box-shadow:8px 0 24px #0008;
+  }
+  body.inbox-open main{margin-left:320px}
+  #inbox .ihead{display:flex;gap:4px;padding:10px 12px;border-bottom:1px solid var(--line);align-items:center}
+  #inbox .ihead button.on{background:var(--accent-dim);border-color:var(--accent)}
+  #inbox .ihead input{flex:1;min-width:0}
+  #inboxList{flex:1;overflow-y:auto;padding:6px 8px 30px}
+  .icard{display:flex;gap:9px;align-items:center;width:100%;text-align:left;padding:6px 8px;margin-bottom:4px;background:var(--panel2)}
+  .icard.on{border-color:var(--accent)}
+  .icard .th{flex:0 0 48px;height:48px;display:flex;align-items:flex-end;justify-content:center;background:#0e1013;border-radius:4px;overflow:hidden}
+  .icard .th img{max-width:48px;max-height:48px;image-rendering:pixelated}
+  .icard .mt{min-width:0;flex:1}
+  .icard .mt b{display:block;font:11.5px var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .icard .mt span{display:block;font-size:11px;color:var(--dim2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .icard .tag{display:inline-block;font-size:10px;padding:0 5px;border-radius:3px;margin-right:3px;background:#00000050;color:var(--dim)}
+  .icard .tag.bad{background:#4a1d22;color:#ffc9cd}
+  .icard .tag.good{background:#173726;color:#c2f0d4}
+  .igroup{font-size:10.5px;color:var(--dim2);text-transform:uppercase;letter-spacing:.8px;margin:10px 4px 4px}
+  .srvbox{background:#18262a;border:1px solid var(--accent-dim);border-radius:5px;padding:9px 10px;margin:8px 0;font-size:11.5px;line-height:1.6;color:#c9eeea}
+  .srvbox code{font-family:var(--mono);font-size:11px;word-break:break-all}
+  .srvbox .acts{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+  .srvbox .acts button{flex:1}
+  #srvMsg{margin-top:8px}
+  #srvMsg .msg{padding:7px 9px;border-radius:4px;background:var(--panel2);border-left:3px solid var(--warn);color:#ffe6b0}
+  #srvMsg .msg.ok{border-color:var(--ok);color:#c2f0d4}
+  #srvMsg .msg.err{border-color:var(--err);color:#ffc9cd}
+  #srvMsg pre{font:10.5px/1.5 var(--mono);white-space:pre-wrap;margin:6px 0 0;color:var(--dim);max-height:160px;overflow:auto}
+  #srvMsg .acts{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
   [hidden]{display:none !important}
 </style>
 </head>
@@ -206,14 +239,25 @@
   <div class="cfg">
     <label for="cSpec">칸 규격</label>
     <select id="cSpec">
-      <option value="sim16">16 × 8 · 시뮬레이터 (새 기준)</option>
-      <option value="diary32">32 × 16 · 다이어리 (현재 앱)</option>
+      <option value="sim16">16 × 8 · 시뮬레이터·다이어리</option>
+      <option value="diary32">32 × 16 · 예전 다이어리 (전환 전)</option>
     </select>
   </div>
   <div class="gridinfo" id="gridInfo">이미지를 올려주세요</div>
   <div class="spacer"></div>
+  <button id="btnInbox" hidden title="시뮬레이터에서 검수 완료한 에셋">📥 받은 에셋<b id="inboxCount">0</b></button>
   <button id="btnReset">전체 초기화</button>
 </header>
+
+<!-- ══ 받은 에셋 (node server.mjs 로 열었을 때만) ══ -->
+<aside id="inbox" hidden>
+  <div class="ihead">
+    <button data-itab="inbox" class="on">받은 것</button>
+    <button data-itab="done">다이어리에 넣은 것</button>
+    <input id="inboxQ" type="search" placeholder="id 검색">
+  </div>
+  <div id="inboxList"></div>
+</aside>
 
 <main>
   <!-- ══ 좌: 캔버스 ══ -->
@@ -290,10 +334,11 @@
     <div class="f">
       <label for="fId">id <span class="req">*</span></label>
       <div class="inline">
-        <input id="fId" placeholder="furniture-desk-01">
-        <button id="btnGenId" title="카테고리·파일명으로 자동 생성">자동</button>
+        <input id="fId" placeholder="fur-desk-00001">
+        <button id="btnGenId" title="카테고리·type으로 다음 번호 id를 만들고 파일명도 맞춥니다 (start.bat으로 열었을 때)">자동</button>
       </div>
-      <div class="hint">배치 데이터가 이 값으로 아이템을 찾습니다. <b style="color:var(--warn)">한번 배포하면 절대 바꾸지 마세요.</b></div>
+      <div class="hint">규칙: <code>&lt;fur|dec|etc|map&gt;-&lt;type&gt;-&lt;5자리 번호&gt;</code>. 번호는 카테고리 전체에서 이어 셉니다.
+        배치 데이터가 이 값으로 아이템을 찾습니다. <b style="color:var(--warn)">한번 배포하면 절대 바꾸지 마세요.</b></div>
     </div>
     <div class="f">
       <label for="fNameKo">name <span class="req">*</span> <span style="color:var(--dim);font-weight:400">언어별</span></label>
@@ -321,6 +366,16 @@
           <option value="wall">wall (벽)</option>
         </select>
       </div>
+    </div>
+    <div class="f">
+      <label for="fType">type <span style="color:var(--dim);font-weight:400">세부 분류 하나 · 비우면 미분류</span></label>
+      <select id="fType"></select>
+      <div class="hint" id="typeHint"></div>
+    </div>
+    <div class="f">
+      <label>tags <span style="color:var(--dim);font-weight:400">여러 개 · 선택 (나중에 채워도 됨)</span></label>
+      <div class="chips" id="tagChips"></div>
+      <div class="hint" id="tagHint"></div>
     </div>
     <div class="row">
       <div class="f">
@@ -354,6 +409,14 @@
       </div>
       <label class="chk"><input type="checkbox" id="fFlippable"> flippable — 좌우 반전 허용 (반전하면 w↔h)</label>
       <label class="chk"><input type="checkbox" id="fFlat"> flat — 러그처럼 납작함 (밟고 지나가고, 위에 가구를 놓을 수 있음)</label>
+      <div class="inline" style="margin-top:6px">
+        <button id="btnBlockEdit" title="캔버스에서 점유 칸 밖의 칸을 클릭(드래그)해 막힌 칸을 켜고 끕니다">막힌 칸 편집 <b>B</b></button>
+        <button id="btnBlockClear">모두 지우기</button>
+        <span class="estimate" id="blockInfo"></span>
+      </div>
+      <div class="hint">높은 그림이 점유 칸 <b>밖</b>(주로 뒤쪽)을 덮으면, 그 칸을 <b>막힌 칸</b>(<code>blockCells</code>)으로 고르세요.
+        다른 가구를 그 칸에 놓을 수 없고 캐릭터도 지나가지 못합니다. 반전하면 자동으로 따라 바뀝니다.
+        <code>w×h</code> 나누기를 바꾸면 기준점이 달라지니 막힌 칸을 다시 확인하세요.</div>
       <div class="backline" id="backLine"></div>
       <div class="hint">뒷모습(<code>이름_back.png</code>)이 있으면 앞 → 앞 반전 → 뒤 → 뒤 반전, 4방향으로 돌릴 수 있습니다.
         <b>시뮬레이터 전용</b> — 다이어리는 아직 <code>back</code>을 쓰지 않습니다.</div>
@@ -403,16 +466,24 @@
     <pre id="json">{}</pre>
 
     <h2>저장</h2>
+    <div class="srvbox" id="srvBox" hidden>
+      <div id="srvWhere"></div>
+      <div class="acts">
+        <button id="btnSrvSave">받은 폴더에 저장</button>
+        <button id="btnSrvExport" class="primary">다이어리에 추가</button>
+      </div>
+      <div id="srvMsg"></div>
+    </div>
     <div class="f">
       <label for="fBase">파일명 (확장자 제외)</label>
       <div class="inline">
-        <input id="fBase" placeholder="furniture-desk-01">
+        <input id="fBase" placeholder="fur-desk-00001">
         <button id="btnV2" title="_v2 붙이기">_v2</button>
       </div>
       <div class="hint">이미지와 매니페스트가 <b>같은 이름</b>이어야 짝이 맞습니다. 뒷모습은 <code>파일명_back.png</code>로 같이 저장됩니다.</div>
     </div>
     <div class="simnote" id="simNote">
-      <b>시뮬레이터에 넣기</b> — <code>fillow_simulator/assets/processed/&lt;카테고리&gt;/…</code>(또는 <code>raw/</code>)를 고르세요.
+      <b>시뮬레이터에 넣기</b> — <code>fillow_simulator/assets/pending/&lt;카테고리&gt;/…</code>를 고르세요.
       시뮬레이터가 저장을 감지해 바로 방에 반영합니다. 같은 이름으로 덮어써도 됩니다.
     </div>
     <div class="cachewarn" id="cacheWarn" hidden>
@@ -450,7 +521,7 @@
      그림 폭 = (w + h) * TILE_W/2.
 
    ★ 칸 규격이 두 개인 이유 ★
-     시뮬레이터는 16×8 칸으로 먼저 옮겨 가는 중이고 다이어리는 아직 32×16이다.
+     2026-10 다이어리도 16×8로 전환했다 (시뮬레이터와 같은 규격). 32×16은 전환 전 매니페스트를 고칠 때만 쓴다.
      같은 그림이라도 w/h 숫자가 2배 차이 나므로, 어느 쪽에 넣을 매니페스트인지 헤더에서 고른다.
      규칙 차이:
        - 그림 폭: 다이어리는 정확히 일치해야 함 / 시뮬레이터는 좌우 여백이 같으면 더 넓어도 됨
@@ -458,11 +529,11 @@
    ═══════════════════════════════════════════════════════════════════ */
 const SPECS = {
   sim16: {
-    key: 'sim16', label: '시뮬레이터 16×8', TILE_W: 16, TILE_H: 8,
+    key: 'sim16', label: '16×8 (시뮬레이터·다이어리)', TILE_W: 16, TILE_H: 8,
     exactWidth: false, floorExact: false,
   },
   diary32: {
-    key: 'diary32', label: '다이어리 32×16', TILE_W: 32, TILE_H: 16,
+    key: 'diary32', label: '예전 다이어리 32×16', TILE_W: 32, TILE_H: 16,
     exactWidth: true, floorExact: true,
   },
 };
@@ -485,8 +556,8 @@ const WALL_LABELS = { back: '뒤쪽 벽', left: '왼쪽 벽', base: '걸레받�
    - 출력 순서는 docs/asset-manifest.md 예시와 같다.
    - 안 쓰는 선택 키는 아예 적지 않는다 (아이소 스펙: "이 문서에 없는 키는 쓰지 않는다", false/null도 안 적음).
    - LEGACY: 탑다운 시절 키. 다이어리 빌드·시뮬레이터 모두 "무시 + 경고"이므로 불러올 때 걷어낸다. */
-const KEY_ORDER = ['id','name','desc','category','kind','acquisition','qty',
-                   'w','h','flippable','flat','back','wall','shader'];
+const KEY_ORDER = ['id','name','desc','category','type','tags','kind','acquisition','qty',
+                   'w','h','flippable','flat','blockCells','back','wall','shader'];
 const LEGACY_KEYS = ['footprint','rotation','imgW','imgH','frameW','frameH','tint','image'];
 
 /* ── 방꾸미기 팔레트 38색 (src/game/palette.js와 같은 알고리즘) ──
@@ -586,7 +657,9 @@ const findColor = (hex) => BY_HEX.get(String(hex).toUpperCase()) || null;
 const blankForm = () => ({
   id: '', nameKo: '', nameEn: '', descKo: '', descEn: '',
   category: 'furniture', kind: '', acquisition: 'default', qty: 1,
+  type: '', tags: [],   // 분류 (다이어리 src/data/taxonomy.js) - 비어도 된다
   w: 1, h: 1, flippable: false, flat: false,
+  blockCells: [],       // 막힌 칸 [a, b] - 앞모습(반전 안 함) 기준으로 보관
   wall: { ...WALL_DEFAULT },
 });
 const state = {
@@ -599,10 +672,38 @@ const state = {
   extras: {},           // 불러온 JSON의, 이 빌더가 모르는 키 (pixellab 메타 등) - 그대로 출력
   dropped: [],          // 불러올 때 걷어낸 탑다운 시절 키 이름
   view: { zoom: 4, showGrid: true, showBox: true, showImage: true, sim: false,
+          editBlock: false, paint: null,   // 막힌 칸 편집 모드 / 드래그 중 칠하기('add'|'del')
           face: { flip: false, back: false }, swap: null },
   base: '',
   dirHandle: null,
 };
+/** 받은 에셋 연결 상태 (13-1절) - node server.mjs 로 열었을 때만 on */
+const SRV = { on: false, items: [], tab: 'inbox', q: '', cur: null, opening: false };
+/** 분류 어휘 목록 - start.bat(서버)으로 열면 다이어리 src/data/taxonomy.js를 받아 온다. 없으면 null */
+let TAXO = null;
+
+/* ── id 규칙 · 분류 (다이어리 src/data/taxonomy.js와 같은 규칙 - 한쪽을 고치면 같이 고칠 것) ── */
+const CAT_CODES = { furniture: 'fur', deco: 'dec', etc: 'etc', map: 'map' };
+const SERIAL_DIGITS = 5;
+const ID_RE = /^([a-z]{3})-([a-z0-9]+(?:-[a-z0-9]+)*)-(\d{5,})$/;
+function parseAssetId(id) {
+  const m = ID_RE.exec(String(id ?? ''));
+  if (!m) return null;
+  const category = Object.keys(CAT_CODES).find((k) => CAT_CODES[k] === m[1]) ?? null;
+  return category ? { code: m[1], category, slug: m[2], serial: Number(m[3]) } : null;
+}
+const formatAssetId = (category, slug, serial) => `${CAT_CODES[category] ?? 'etc'}-${slug || 'item'}-${String(serial).padStart(SERIAL_DIGITS, '0')}`;
+/** 그 카테고리(맵은 kind)에 고를 수 있는 group 목록 */
+function typeGroupsFor(category, kind, taxo = TAXO) {
+  if (!taxo) return [];
+  return taxo.groups.filter((g) => g.category === category && (category !== 'map' || g.id === kind));
+}
+const isKnownType = (category, kind, type, taxo = TAXO) => typeGroupsFor(category, kind, taxo).some((g) => g.types.some((t) => t.id === type));
+const isKnownTag = (tag, taxo = TAXO) => Boolean(taxo?.tags.some((t) => t.id === tag));
+/** 폴더 경로(furniture/seating/armchair/…)에서 type 추측 - 목록에 있는 첫 폴더 이름 */
+function typeFromPath(rel, category, kind, taxo = TAXO) {
+  return String(rel).split('/').slice(0, -1).reverse().find((seg) => isKnownType(category, kind, seg, taxo)) || '';
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    3. 기하 — RoomScene / simulator room.js 재현 (순수 함수, 자가 테스트 대상)
@@ -657,6 +758,36 @@ function cellAtPoint(x, y, W, H, w, h, spec) {
   const s = (w + h) - (H - y) / g.hq;           // a + b
   const a = (p + s) / 2, b = (s - p) / 2;
   return { a, b, inside: a >= 0 && b >= 0 && a < w && b < h };
+}
+
+/* ── 막힌 칸 (blockCells) - RoomScene.blockOffsetsOf / simulator room.js와 같은 규칙 ──
+   [a, b] = 배치 원점(점유 칸 뒤 꼭짓점) 기준 오프셋. 점유 칸(w×h) 밖이어야 하고, 반전하면 [b, a]. */
+const inFoot = (a, b, w, h) => a >= 0 && b >= 0 && a < w && b < h;
+/** 정수 쌍만, 중복·점유 칸 안 제거, 정렬 */
+function normBlockCells(list, w, h) {
+  if (!Array.isArray(list)) return [];
+  const seen = new Set(), out = [];
+  list.forEach((c) => {
+    if (!Array.isArray(c) || c.length !== 2 || !c.every(Number.isInteger)) return;
+    const k = c.join(',');
+    if (seen.has(k) || inFoot(c[0], c[1], w, h)) return;
+    seen.add(k); out.push([c[0], c[1]]);
+  });
+  return out.sort((p, q) => p[1] - q[1] || p[0] - q[0]);
+}
+/** 보관 좌표 ↔ 보기 좌표 (반전이면 a↔b, 자기 자신이 역함수) */
+const faceBlock = (cells, flip) => cells.map(([a, b]) => (flip ? [b, a] : [a, b]));
+/** 고를 수 있는 칸 - 점유 칸 밖이고 칸 중심이 그림(+여유) 안에 있는 칸 (보기 좌표) */
+function blockCandidates(W, H, w, h, spec, pad = 0) {
+  const g = geom(W, H, w, h, spec);
+  const n = Math.ceil((W + H) / spec.TILE_H) + 2;
+  const out = [];
+  for (let a = -n; a < w + n; a++) for (let b = -n; b < h + n; b++) {
+    if (inFoot(a, b, w, h)) continue;
+    const c = g.corner(a + 0.5, b + 0.5);
+    if (c.x >= -pad && c.x <= W + pad && c.y >= -pad && c.y <= H + pad) out.push([a, b]);
+  }
+  return out;
 }
 
 /** 열마다 가장 아래 불투명 픽셀의 y (없으면 -1) */
@@ -845,6 +976,7 @@ const stemOf = (name) => { const d = name.lastIndexOf('.'); return d > 0 ? name.
 async function loadFiles(fileList) {
   const files = Array.from(fileList || []);
   if (!files.length) return;
+  if (!SRV.opening) { SRV.cur = null; srvRender(); }   // 직접 연 파일은 받은 에셋과 무관
   const imgs = files.filter((f) => /^image\//.test(f.type) || /\.(png|webp)$/i.test(f.name));
   const jsons = files.filter((f) => /\.json$/i.test(f.name));
   if (!imgs.length && !jsons.length) { toast('PNG 또는 JSON 파일이 아닙니다', true); return; }
@@ -878,7 +1010,7 @@ async function setFront(img, { keepForm = false } = {}) {
   const stem = stemOf(img.fileName);
   if (!keepForm) {
     if (!state.base) { state.base = stem; $('#fBase').value = stem; }
-    if (!state.form.id) genId();
+    if (!state.form.id) await genId({ quiet: true });
   }
   $('#stage').classList.remove('empty');
   $('#drop').hidden = true;
@@ -907,6 +1039,9 @@ function applyManifest(m, fileName) {
   f.w = intOr(m.w, 1); f.h = intOr(m.h, 1);
   f.flippable = m.flippable === true;
   f.flat = m.flat === true;
+  f.blockCells = normBlockCells(m.blockCells, f.w, f.h);
+  f.type = typeof m.type === 'string' ? m.type : '';
+  f.tags = Array.isArray(m.tags) ? [...new Set(m.tags.filter((t) => typeof t === 'string' && t))] : [];
   if (m.wall && typeof m.wall === 'object') ['back', 'left', 'base'].forEach((k) => { if (HEX.test(m.wall[k] || '')) f.wall[k] = m.wall[k].toUpperCase(); });
   state.form = f;
   state.backRef = typeof m.back === 'string' ? m.back : '';
@@ -1115,6 +1250,18 @@ function renderCanvas() {
     for (let a = 1; a < w; a++) line(ctx, P(g.corner(a, 0)), P(g.corner(a, h)), 'rgba(79,209,197,.6)');
     for (let b = 1; b < h; b++) line(ctx, P(g.corner(0, b)), P(g.corner(w, b)), 'rgba(79,209,197,.6)');
   }
+  // 막힌 칸 - 편집 중이면 고를 수 있는 칸을 점선으로, 막힌 칸은 빨간 칸으로
+  const cellPts = (a, b) => [P(g.corner(a, b)), P(g.corner(a + 1, b)), P(g.corner(a + 1, b + 1)), P(g.corner(a, b + 1))];
+  if (state.view.editBlock && !state.form.flat) {
+    ctx.save(); ctx.setLineDash([2, 3]);
+    blockCandidates(W, H, w, h, SPEC, PAD).forEach(([a, b]) => poly(ctx, cellPts(a, b), null, 'rgba(255,255,255,.28)'));
+    ctx.restore();
+  }
+  if (!state.form.flat) {
+    faceBlock(state.form.blockCells, state.view.face.flip).forEach(([a, b]) => {
+      if (!inFoot(a, b, w, h)) poly(ctx, cellPts(a, b), 'rgba(242,102,111,.30)', 'rgba(242,102,111,.95)', 1.5);
+    });
+  }
   // 마우스 아래 칸
   const hv = state.view.hover;
   if (hv) poly(ctx, [P(g.corner(hv.a, hv.b)), P(g.corner(hv.a + 1, hv.b)), P(g.corner(hv.a + 1, hv.b + 1)), P(g.corner(hv.a, hv.b + 1))], 'rgba(255,255,255,.18)', 'rgba(255,255,255,.7)');
@@ -1187,6 +1334,11 @@ function renderSim() {
   if (cx >= RC) cx = Math.max(0, gx - 2);
 
   poly(ctx, [T(gx, gy), T(gx + dw, gy), T(gx + dw, gy + dh), T(gx, gy + dh)], 'rgba(79,209,197,.35)', 'rgba(79,209,197,.9)', 1 / Z);
+  if (!state.form.flat) faceBlock(state.form.blockCells, state.view.face.flip).forEach(([a, b]) => {
+    const x = gx + a, y = gy + b;
+    if (x < 0 || y < 0 || x >= RC || y >= RC || inFoot(a, b, dw, dh)) return;   // 방 밖(벽 쪽)은 그리지 않는다
+    poly(ctx, [T(x, y), T(x + 1, y), T(x + 1, y + 1), T(x, y + 1)], 'rgba(242,102,111,.35)', 'rgba(242,102,111,.9)', 1 / Z);
+  });
 
   const drawItem = () => {
     const center = T(gx + dw / 2, gy + dh / 2), front = T(gx + dw, gy + dh);
@@ -1334,6 +1486,14 @@ function renderSections() {
   const cur = state.view.face.back && state.back ? state.back : state.image;
   $('#btnRestore').disabled = !cur?.original;
   $('#btnAuto').disabled = !hasImg;
+  const nb = state.form.blockCells.length;
+  if (state.form.flat && state.view.editBlock) state.view.editBlock = false;
+  $('#btnBlockEdit').disabled = !hasImg || state.form.flat;
+  $('#btnBlockEdit').classList.toggle('on', state.view.editBlock);
+  $('#btnBlockClear').disabled = !nb;
+  $('#blockInfo').textContent = state.form.flat ? 'flat은 막힌 칸 없음'
+    : (nb ? `막힌 칸 ${nb}개` : '막힌 칸 없음') + (state.view.editBlock ? ' · 캔버스에서 클릭/드래그' : '');
+  $('#cv').style.cursor = state.view.editBlock ? 'crosshair' : '';
 
   const bl = $('#backLine');
   if (state.back) bl.innerHTML = `뒷모습 <code>${esc(state.back.fileName)}</code> ${state.back.w}×${state.back.h} → 저장 시 <code>${esc(backFileName())}</code>`;
@@ -1364,13 +1524,60 @@ $('#cv').addEventListener('pointermove', (ev) => {
   if (isPlaceable()) {
     const { w, h } = faceDims();
     const c = cellAtPoint(x, y, img.w, img.h, w, h, SPEC);
-    if (c.inside) { hover = { a: Math.floor(c.a), b: Math.floor(c.b) }; label = `칸 [${hover.a}, ${hover.b}] · ${px}`; }
+    const cell = { a: Math.floor(c.a), b: Math.floor(c.b) };
+    if (c.inside) { hover = cell; label = `칸 [${hover.a}, ${hover.b}] · ${px}`; }
+    else if (state.view.editBlock) {
+      hover = cell;
+      const st = faceBlock([[cell.a, cell.b]], state.view.face.flip)[0];
+      const on = state.form.blockCells.some(([p, q]) => p === st[0] && q === st[1]);
+      label = `칸 [${cell.a}, ${cell.b}]${on ? ' · 막힘' : ''} · ${px}`;
+      if (state.view.paint) paintBlock(cell, state.view.paint);
+    }
   }
   $('#stCur').textContent = label;
   const prev = state.view.hover;
   if ((prev?.a !== hover?.a) || (prev?.b !== hover?.b)) { state.view.hover = hover; renderCanvas(); }
 });
-$('#cv').addEventListener('pointerleave', () => { state.view.hover = null; $('#stCur').textContent = '-'; renderCanvas(); });
+$('#cv').addEventListener('pointerleave', () => { state.view.hover = null; state.view.paint = null; $('#stCur').textContent = '-'; renderCanvas(); });
+
+/* ─ 막힌 칸 편집: 클릭으로 켜고 끄기, 누른 채 드래그하면 첫 칸과 같은 동작으로 칠한다 ─ */
+/** 보기 좌표 칸 하나를 막힌 칸에 넣거나(add) 뺀다(del). 바뀌었으면 true */
+function paintBlock(cell, mode) {
+  const { w, h } = faceDims();
+  if (inFoot(cell.a, cell.b, w, h)) return false;
+  const [a, b] = faceBlock([[cell.a, cell.b]], state.view.face.flip)[0];
+  const list = state.form.blockCells;
+  const i = list.findIndex(([p, q]) => p === a && q === b);
+  if (mode === 'add' && i < 0) list.push([a, b]);
+  else if (mode === 'del' && i >= 0) list.splice(i, 1);
+  else return false;
+  state.form.blockCells = normBlockCells(list, intOr(state.form.w, 1), intOr(state.form.h, 1));
+  render();
+  return true;
+}
+$('#cv').addEventListener('pointerdown', (ev) => {
+  if (!state.view.editBlock || ev.button !== 0 || !isPlaceable() || state.form.flat) return;
+  const img = faceImage(); if (!img) return;
+  const r = ev.target.getBoundingClientRect(), z = state.view.zoom;
+  const x = (ev.clientX - r.left) / z - PAD, y = (ev.clientY - r.top) / z - PAD;
+  const { w, h } = faceDims();
+  const c = cellAtPoint(x, y, img.w, img.h, w, h, SPEC);
+  if (c.inside) { toast('점유 칸 안은 이미 막혀 있습니다 — 바깥 칸을 고르세요'); return; }
+  const cell = { a: Math.floor(c.a), b: Math.floor(c.b) };
+  const [a, b] = faceBlock([[cell.a, cell.b]], state.view.face.flip)[0];
+  const on = state.form.blockCells.some(([p, q]) => p === a && q === b);
+  state.view.paint = on ? 'del' : 'add';
+  ev.target.setPointerCapture?.(ev.pointerId);
+  paintBlock(cell, state.view.paint);
+  ev.preventDefault();
+});
+addEventListener('pointerup', () => { state.view.paint = null; });
+$('#btnBlockEdit').onclick = () => {
+  if (!state.image || state.form.flat) return;
+  state.view.editBlock = !state.view.editBlock;
+  render();
+};
+$('#btnBlockClear').onclick = () => { state.form.blockCells = []; render(); };
 
 /* ═══════════════════════════════════════════════════════════════════
    8. 검증 — build-inventory.mjs(normalizeIso/normalizeShader) + 시뮬레이터 catalog.buildItem 규칙
@@ -1391,6 +1598,13 @@ function validate() {
   });
   if (!CATEGORIES.includes(f.category)) E(`<code>category</code>가 유효하지 않습니다 (${CATEGORIES.join(' / ')})`);
   if (f.qty !== '' && f.qty !== null && (!Number.isInteger(+f.qty) || +f.qty < 1)) W('<code>qty</code>는 1 이상의 정수여야 합니다');
+  const idp = parseAssetId(f.id);
+  if (f.id.trim() && !idp) W(`<code>id</code>가 규칙(<code>${CAT_CODES[f.category] ?? '???'}-&lt;type&gt;-00000</code>)과 다릅니다 — [자동]으로 다음 번호 id를 받으세요`);
+  else if (idp && idp.category !== f.category) W(`<code>id</code> 앞 코드 <code>${idp.code}</code>가 카테고리 ${f.category}(<code>${CAT_CODES[f.category]}</code>)와 다릅니다`);
+  if (state.base && f.id && !state.base.startsWith(f.id)) W(`파일명 <code>${esc(state.base)}</code>이 id와 다릅니다 — 파일명은 id(그림 교체 시 <code>_v2</code>)로 맞춥니다`);
+  if (!f.type) W('<code>type</code>이 비어 있습니다 — 다이어리에 <b>미분류</b>로 들어갑니다 (동작은 정상)');
+  else if (TAXO && !isKnownType(f.category, f.kind, f.type)) W(`<code>type</code> "${esc(f.type)}"가 분류 목록에 없습니다 — 빌드가 미분류로 처리합니다`);
+  if (TAXO) f.tags.filter((t) => !isKnownTag(t)).forEach((t) => W(`tag "${esc(t)}"가 태그 목록에 없습니다 — 빌드가 뺍니다`));
   if (state.dropped.length) W(`불러온 JSON의 탑다운 시절 키 <code>${state.dropped.join(', ')}</code>는 출력에서 뺐습니다 (아이소에서는 무시되는 값)`);
 
   if (isMap()) {
@@ -1414,6 +1628,12 @@ function validate() {
       if (issue?.kind === 'exact') W(`그림 폭이 규격과 다릅니다: ${w}×${h}칸이면 <code>${issue.expect}px</code>이어야 하는데 ${img.w}px — 방에서 칸과 어긋나 보입니다`);
       if (issue?.kind === 'narrow') W(`그림 폭이 규격보다 좁습니다: ${w}×${h}칸이면 ${issue.expect}px 이상이어야 하는데 ${img.w}px`);
       if (issue?.kind === 'odd') W(`그림 폭 ${img.w}px — 규격 ${issue.expect}px과의 차이가 홀수라 바닥 마름모 가운데에 맞출 수 없습니다 (좌우 여백을 같게)`);
+      const bc = state.form.blockCells;
+      if (f.flat && bc.length) W(`flat 아이템이라 막힌 칸 ${bc.length}개는 저장하지 않습니다`);
+      else if (bc.length) {
+        const inside = bc.filter(([a, b]) => inFoot(a, b, w, h)).length;
+        if (inside) W(`막힌 칸 ${inside}개가 지금 점유 칸(${w}×${h}) 안에 있어 저장에서 빠집니다 — w×h를 바꿨다면 다시 확인하세요`);
+      }
       if (img.bottomPad > 0) W(`그림 아래에 투명 여백이 ${img.bottomPad}px 있습니다 — 방에서 바닥 위로 떠 보입니다. [여백 자르기]로 정리하세요`);
       if (img.h < (w + h) * SPEC.TILE_H / 2) W(`그림 높이 ${img.h}px이 바닥 마름모 높이(${(w + h) * SPEC.TILE_H / 2}px)보다 낮습니다 — w/h가 너무 큰지 확인하세요`);
       const list = estimates();
@@ -1491,6 +1711,9 @@ function buildManifest() {
   m.name = { ko: f.nameKo.trim(), en: f.nameEn.trim() };
   m.desc = { ko: f.descKo.trim(), en: f.descEn.trim() };
   m.category = f.category;
+  // 분류 - 비었으면 키를 적지 않는다 (빈 값 = 미분류 / 태그 없음, 빌드·앱 모두 정상 동작)
+  if (f.type) m.type = f.type;
+  if (f.tags.length) m.tags = [...f.tags];
   if (f.category === 'map') m.kind = f.kind || null;
   m.acquisition = f.acquisition || 'default';
   if (f.qty !== '' && f.qty !== null && Number.isInteger(+f.qty) && +f.qty >= 1) m.qty = +f.qty;
@@ -1503,6 +1726,10 @@ function buildManifest() {
     // 선택 키는 true일 때만 적는다 (false/null을 적지 않는 것이 아이소 스펙의 관례)
     if (f.flippable) m.flippable = true;
     if (f.flat) m.flat = true;
+    else {
+      const bc = normBlockCells(f.blockCells, m.w, m.h);
+      if (bc.length) m.blockCells = bc;
+    }
     if (state.back) m.back = backFileName();
     else if (state.backRef) m.back = state.backRef;
 
@@ -1571,18 +1798,35 @@ function renderOutput() {
   const hasErr = issues.some((i) => i.lv === 'err');
   $('#btnSaveDir').disabled = hasErr;
   $('#btnDownload').disabled = hasErr;
+  $('#btnSrvSave').disabled = hasErr || !SRV.cur;
+  $('#btnSrvExport').disabled = hasErr || !SRV.cur;
   $('#json').textContent = state.image ? serialize(buildManifest()) : '{}';
 }
 
 /* ═══════════════════════════════════════════════════════════════════
    10. 폼 바인딩
    ═══════════════════════════════════════════════════════════════════ */
-function genId() {
-  const stem = kebab(state.base || state.image?.fileName || '');
-  if (!stem) return;
-  // 파일명이 이미 카테고리로 시작하면(furniture-desk-01) 그대로 쓴다
-  state.form.id = stem.startsWith(state.form.category + '-') ? stem : `${state.form.category}-${stem}`;
-  $('#fId').value = state.form.id;
+/**
+ * 다음 번호 id를 받아 id와 파일명을 맞춘다.
+ *   start.bat(서버): 다이어리·빌더·시뮬레이터를 모두 훑은 다음 번호 (fur-armchair-00180)
+ *   더블클릭(file://): 번호를 모르므로 00000으로 두고 직접 고치게 한다
+ */
+async function genId({ quiet = false } = {}) {
+  const f = state.form;
+  const slug = isMap() ? (f.kind || 'item') : (f.type || 'item');
+  let id = null;
+  if (SRV.on && TAXO) {
+    const res = await srvFetch('/api/next-id', { category: f.category, slug, current: f.id }).catch(() => null);
+    if (res?.ok) id = res.id;
+  }
+  if (!id) {
+    f.id = formatAssetId(f.category, slug, 0);
+    $('#fId').value = f.id;
+    if (!quiet) toast('번호 자동은 start.bat으로 열었을 때만 됩니다 — 끝 5자리를 직접 고치세요', true);
+    return;
+  }
+  f.id = id; $('#fId').value = id;
+  state.base = id; $('#fBase').value = id;
 }
 function syncFormToUI() {
   const f = state.form;
@@ -1593,6 +1837,7 @@ function syncFormToUI() {
   $('#fAcq').value = f.acquisition; $('#fQty').value = f.qty ?? '';
   $('#fW').value = f.w; $('#fH').value = f.h;
   $('#fFlippable').checked = f.flippable; $('#fFlat').checked = f.flat;
+  renderTaxonomy();
   $('#shOn').checked = state.shader.enabled;
   $('#shBody').hidden = !state.shader.enabled;
   renderWallRows();
@@ -1622,14 +1867,53 @@ $('#fCat').addEventListener('change', (e) => {
   state.form.category = e.target.value;
   if (e.target.value !== 'map') state.form.kind = '';
   else if (!state.form.kind) state.form.kind = state.image && state.image.w === state.image.h * 2 ? 'floor' : '';
-  // id가 자동 생성 모양이었으면 카테고리를 따라 바꿔 준다
-  if (state.form.id.startsWith(prev + '-') && state.form.id === `${prev}-${kebab(state.base)}`) genId();
+  // 다른 카테고리의 type은 비운다 (id는 그대로 - 필요하면 [자동])
+  if (state.form.type && TAXO && !isKnownType(state.form.category, state.form.kind, state.form.type)) state.form.type = '';
+  void prev;
   state.view.face = { flip: false, back: false };
   syncFormToUI();
   render();
 });
-$('#fKind').addEventListener('change', (e) => { state.form.kind = e.target.value; render(); });
-$('#btnGenId').addEventListener('click', () => { genId(); render(); });
+$('#fKind').addEventListener('change', (e) => {
+  state.form.kind = e.target.value;
+  if (state.form.type && TAXO && !isKnownType('map', state.form.kind, state.form.type)) state.form.type = '';
+  syncFormToUI(); render();
+});
+$('#fType').addEventListener('change', (e) => { state.form.type = e.target.value; render(); });
+$('#tagChips').addEventListener('change', (e) => {
+  const t = e.target.dataset.tag;
+  if (!t) return;
+  const set = new Set(state.form.tags);
+  if (e.target.checked) set.add(t); else set.delete(t);
+  state.form.tags = [...set];
+  renderTaxonomy(); render();
+});
+
+/** type 선택지 · 태그 칩 - 분류 목록(TAXO)에서 그린다 */
+function renderTaxonomy() {
+  const f = state.form;
+  const sel = $('#fType');
+  const groups = typeGroupsFor(f.category, f.kind);
+  let html = '<option value="">(미분류)</option>';
+  groups.forEach((g) => {
+    html += `<optgroup label="${esc(g.label?.ko || g.id)}">`
+      + g.types.map((t) => `<option value="${esc(t.id)}">${esc(t.label?.ko || t.id)} — ${esc(t.id)}</option>`).join('')
+      + '</optgroup>';
+  });
+  if (f.type && !isKnownType(f.category, f.kind, f.type)) html += `<option value="${esc(f.type)}">${esc(f.type)} (목록에 없음)</option>`;
+  sel.innerHTML = html;
+  sel.value = f.type;
+  $('#typeHint').innerHTML = !TAXO
+    ? '<code>start.bat</code>으로 열면 다이어리 분류 목록(<code>src/data/taxonomy.js</code>)이 나옵니다.'
+    : (f.category === 'map' && !f.kind ? 'kind를 먼저 고르세요.' : (groups.length ? '' : `${f.category}에는 아직 type이 없습니다 — <code>taxonomy.js</code>의 GROUPS에 추가하세요.`));
+
+  const tags = TAXO?.tags ?? [];
+  const unknown = f.tags.filter((t) => !tags.some((x) => x.id === t));
+  $('#tagChips').innerHTML = tags.map((t) => `<label class="chip2"><input type="checkbox" data-tag="${esc(t.id)}"${f.tags.includes(t.id) ? ' checked' : ''}> ${esc(t.label?.ko || t.id)}</label>`).join('')
+    + unknown.map((t) => `<label class="chip2 unknown" title="목록에 없는 태그 - 빌드가 뺍니다"><input type="checkbox" data-tag="${esc(t)}" checked> ${esc(t)}</label>`).join('');
+  $('#tagHint').innerHTML = !TAXO ? '' : (tags.length ? '' : '태그 목록이 비어 있습니다 — <code>taxonomy.js</code>의 TAGS에 추가하면 여기 나타납니다.');
+}
+$('#btnGenId').addEventListener('click', async () => { await genId(); render(); });
 $('#fBase').addEventListener('input', (e) => { state.base = e.target.value; render(); });
 $('#btnV2').addEventListener('click', () => {
   const m = state.base.match(/^(.*?)_v(\d+)$/);
@@ -1916,6 +2200,7 @@ addEventListener('keydown', (e) => {
   if (k === 'g') $('#tgGrid').click();
   if (k === 'v') $('#tgBox').click();
   if (k === 'f') $('#vFlip').click();
+  if (k === 'b') $('#btnBlockEdit').click();
   if (k === 'a' && state.image && isPlaceable()) $('#btnAuto').click();
 });
 
@@ -1933,6 +2218,200 @@ addEventListener('paste', (e) => {
   const blob = item.getAsFile();
   loadFiles([new File([blob], 'pasted.png', { type: blob.type || 'image/png' })]);
 });
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   13-1. 받은 에셋 / 다이어리에 추가  (node server.mjs 로 열었을 때만)
+   ═══════════════════════════════════════════════════════════════════
+   시뮬레이터 [검수 완료] → 빌더 inbox/  →  여기서 다듬고 [저장]  →  [다이어리에 추가]
+   (fillow_diary/public/asset/<같은 하위 경로>/ 에 복사 + build-inventory, 빌더 쪽은 done/ 으로)
+   index.html을 더블클릭으로 열면(file://) 이 섹션은 아무것도 하지 않는다. */
+
+async function srvFetch(url, body) {
+  const res = await fetch(url, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+  return res.json().catch(() => ({ ok: false, error: `서버 응답을 읽지 못함 (${res.status})` }));
+}
+async function srvRefresh() {
+  if (!SRV.on) return;
+  const data = await srvFetch('/api/list').catch(() => null);
+  if (!data?.items) return;
+  SRV.items = data.items;
+  SRV.diary = data.diary;
+  if (SRV.cur) {
+    const cur = SRV.items.find((it) => it.root === SRV.cur.root && it.rel === SRV.cur.rel);
+    if (cur) SRV.cur = cur;
+  }
+  srvRenderList(); srvRender();
+}
+async function srvInit() {
+  if (!/^https?:$/.test(location.protocol)) return;
+  const data = await srvFetch('/api/list').catch(() => null);
+  if (!data?.items) return;
+  SRV.on = true;
+  $('#btnInbox').hidden = false;
+  const tx = await srvFetch('/api/taxonomy').catch(() => null);
+  if (tx?.ok) { TAXO = { groups: tx.groups, tags: tx.tags }; syncFormToUI(); render(); }
+  SRV.items = data.items; SRV.diary = data.diary;
+  srvRenderList(); srvRender();
+  if (SRV.items.some((it) => it.root === 'inbox')) setInboxOpen(true);
+  addEventListener('focus', srvRefresh);
+}
+
+function srvRenderList() {
+  const inboxN = SRV.items.filter((it) => it.root === 'inbox').length;
+  $('#inboxCount').textContent = inboxN;
+  $$('[data-itab]').forEach((b) => b.classList.toggle('on', b.dataset.itab === SRV.tab));
+  const q = SRV.q.trim().toLowerCase();
+  const list = SRV.items.filter((it) => it.root === SRV.tab && (!q || (it.id || it.rel).toLowerCase().includes(q)));
+  if (!list.length) {
+    $('#inboxList').innerHTML = `<p class="hint" style="padding:10px">${SRV.tab === 'inbox'
+      ? '받은 에셋이 없습니다.<br>시뮬레이터에서 에셋을 열고 <b>[✓ 검수 완료]</b>를 누르면 여기로 옵니다.'
+      : '아직 다이어리에 넣은 에셋이 없습니다.'}</p>`;
+    return;
+  }
+  // 하위 폴더(furniture/seating/chair …)별로 묶어 보여 준다
+  const groups = new Map();
+  list.forEach((it) => {
+    const g = it.rel.includes('/') ? it.rel.slice(0, it.rel.lastIndexOf('/')) : '(맨 위)';
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(it);
+  });
+  $('#inboxList').innerHTML = [...groups.entries()].map(([g, items]) => `<div class="igroup">${esc(g)}</div>` + items.map((it) => {
+    const m = it.manifest || {};
+    const name = m.name?.ko || m.name?.en || '';
+    const tags = [];
+    if (!it.json) tags.push('<i class="tag bad">json 없음</i>');
+    if (it.back) tags.push('<i class="tag">뒷모습</i>');
+    if (m.w && m.h) tags.push(`<i class="tag">${m.w}×${m.h}</i>`);
+    if (it.conflict) tags.push('<i class="tag bad" title="다이어리에 같은 id의 다른 그림이 있습니다">id 겹침</i>');
+    else if (it.inDiary) tags.push('<i class="tag good">다이어리에 있음</i>');
+    const on = SRV.cur && SRV.cur.root === it.root && SRV.cur.rel === it.rel;
+    return `<button class="icard ${on ? 'on' : ''}" data-irel="${esc(it.rel)}" data-iroot="${it.root}">
+      <span class="th"><img src="${esc(it.image)}" alt=""></span>
+      <span class="mt"><b>${esc(it.id || it.rel.split('/').pop())}</b><span>${esc(name)}</span><span>${tags.join('')}</span></span>
+    </button>`;
+  }).join('')).join('');
+}
+
+async function srvOpen(root, rel) {
+  const it = SRV.items.find((x) => x.root === root && x.rel === rel);
+  if (!it) return;
+  const fileOf = async (url, name, type) => new File([await (await fetch(url)).blob()], name, { type });
+  const imgName = rel.split('/').pop();
+  const stem = stemOf(imgName);
+  const files = [await fileOf(it.image, imgName, 'image/png')];
+  if (it.json) files.push(await fileOf(it.json, `${stem}.json`, 'application/json'));
+  if (it.back) files.push(await fileOf(it.back, typeof it.manifest?.back === 'string' ? it.manifest.back : `${stem}_back.png`, 'image/png'));
+  // 이전 에셋의 흔적(뒷모습·파일명)을 지우고 새로 연다
+  state.back = null; state.backRef = ''; state.base = ''; $('#fBase').value = '';
+  if (SPEC.key !== 'sim16') { SPEC = SPECS.sim16; $('#cSpec').value = 'sim16'; }
+  SRV.opening = true;
+  try { await loadFiles(files); } finally { SRV.opening = false; }
+  SRV.cur = it;
+  // type이 비었으면 폴더 경로(furniture/seating/armchair/…)로 채운다
+  if (!state.form.type) {
+    const t = typeFromPath(rel, state.form.category, state.form.kind);
+    if (t) { state.form.type = t; syncFormToUI(); render(); }
+  }
+  $('#srvMsg').innerHTML = '';
+  srvRenderList(); srvRender();
+}
+
+function srvRender() {
+  const box = $('#srvBox');
+  box.hidden = !SRV.on;
+  if (!SRV.on) return;
+  const c = SRV.cur;
+  $('#srvWhere').innerHTML = !c
+    ? '<b>받은 에셋</b>에서 연 그림만 여기서 저장·다이어리 추가를 할 수 있습니다. 직접 연 파일은 아래 [폴더 지정해 저장]을 쓰세요.'
+    : `<b>${c.root === 'inbox' ? '받은 에셋' : '다이어리에 넣은 에셋'}</b> <code>${esc(c.rel)}</code><br>`
+      + `다이어리 위치 <code>public/asset/${esc(c.rel.includes('/') ? c.rel.slice(0, c.rel.lastIndexOf('/') + 1) : '')}</code>`
+      + (c.conflict ? '<br><span style="color:#ffc9cd">⚠ 다이어리에 같은 id의 다른 에셋이 있습니다</span>' : c.inDiary ? `<br>다이어리에 있음: <code>${esc(c.inDiary)}</code>` : '');
+  $('#btnSrvExport').textContent = c?.inDiary && !c.conflict ? '다이어리 에셋 교체' : '다이어리에 추가';
+  $('#btnSrvSave').disabled = !c || validate().some((i) => i.lv === 'err');
+  $('#btnSrvExport').disabled = $('#btnSrvSave').disabled;
+}
+
+const blobToBase64 = (blob) => new Promise((resolve, reject) => {
+  const r = new FileReader();
+  r.onload = () => resolve(String(r.result).split(',')[1] || '');
+  r.onerror = reject;
+  r.readAsDataURL(blob);
+});
+
+async function srvSave({ quiet = false } = {}) {
+  if (!SRV.cur) return null;
+  if (validate().some((i) => i.lv === 'err')) { toast('검증 패널의 ✖ 에러를 먼저 고치세요', true); return null; }
+  const files = await Promise.all(outputFiles().map(async (f) => ({ name: f.name, data: await blobToBase64(await f.blob()) })));
+  const res = await srvFetch('/api/save', { root: SRV.cur.root, rel: SRV.cur.rel, base: state.base, files });
+  if (!res.ok) { toast(`저장 실패: ${res.error}`, true); return null; }
+  SRV.cur = { ...SRV.cur, rel: res.rel };
+  await srvRefresh();
+  if (!quiet) toast(`저장했습니다: ${res.rel}`);
+  return res;
+}
+
+function srvMsg(html, lv = '') { $('#srvMsg').innerHTML = `<div class="msg ${lv}">${html}</div>`; }
+
+async function srvExport(replace = false) {
+  if (!SRV.cur) return;
+  if (!state.form.type && !confirm('type이 비어 있어 다이어리에 "미분류"로 들어갑니다.\n그래도 추가할까요?')) return;
+  const saved = await srvSave({ quiet: true });
+  if (!saved) return;
+  const replacing = replace || Boolean(SRV.cur.inDiary && !SRV.cur.conflict);
+  const res = await srvFetch('/api/export', { root: SRV.cur.root, rel: SRV.cur.rel, replace: replacing });
+  if (res.ok) {
+    srvMsg(`✓ 다이어리에 ${res.replaced ? '교체' : '추가'}했습니다 (<code>${esc(res.id)}</code>)<br>`
+      + res.copied.map((f) => `<code>${esc(f)}</code>`).join('<br>')
+      + `<pre>${esc(res.inventory?.log || '')}</pre>`, res.inventory?.ok ? 'ok' : 'err');
+    toast(`다이어리에 ${res.replaced ? '교체' : '추가'}: ${res.id}`);
+    SRV.cur = { ...SRV.cur, root: 'done' };
+    await srvRefresh();
+    return;
+  }
+  if (res.code === 'id-exists') {
+    srvMsg(`${esc(res.error)}<br>새 에셋이면 <b>새 id</b>로, 다이어리 것을 이 그림으로 바꾸려면 <b>교체</b>를 고르세요.
+      <div class="acts">
+        <button data-srv="newid" data-id="${esc(res.suggestId)}">새 id로: ${esc(res.suggestId)}</button>
+        <button data-srv="replace">기존 것 교체 (id 유지)</button>
+      </div>`);
+    return;
+  }
+  if (res.code === 'same-filename') {
+    srvMsg(`${esc(res.error)}<br>다이어리 그림은 1년 캐시가 걸려 있어, 교체할 때는 파일명을 바꿔야 기존 유저에게도 보입니다. <b>id는 그대로</b> 둡니다.
+      <div class="acts"><button data-srv="v2">파일명에 _v2 붙이고 다시 시도</button></div>`);
+    return;
+  }
+  srvMsg(esc(res.error || '알 수 없는 오류'), res.code === 'same' ? 'ok' : 'err');
+}
+
+function setInboxOpen(open) {
+  $('#inbox').hidden = !open;
+  document.body.classList.toggle('inbox-open', open);
+  if (open) srvRefresh();
+}
+$('#btnInbox').onclick = () => setInboxOpen($('#inbox').hidden);
+$$('[data-itab]').forEach((b) => b.onclick = () => { SRV.tab = b.dataset.itab; srvRenderList(); });
+$('#inboxQ').oninput = (e) => { SRV.q = e.target.value; srvRenderList(); };
+$('#inboxList').addEventListener('click', (e) => {
+  const c = e.target.closest('.icard');
+  if (c) srvOpen(c.dataset.iroot, c.dataset.irel).catch((err) => toast(`불러오기 실패: ${err.message}`, true));
+});
+$('#btnSrvSave').onclick = () => srvSave();
+$('#btnSrvExport').onclick = () => srvExport();
+$('#srvMsg').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-srv]');
+  if (!b) return;
+  if (b.dataset.srv === 'newid') {
+    const oldId = state.form.id;
+    state.form.id = b.dataset.id;
+    if (!state.base || state.base === oldId) { state.base = b.dataset.id; $('#fBase').value = state.base; }
+    syncFormToUI(); render();
+    srvMsg(`id를 <code>${esc(oldId)}</code> → <code>${esc(state.form.id)}</code>로 바꿨습니다. 확인하고 <b>[다이어리에 추가]</b>를 다시 누르세요.`, 'ok');
+  } else if (b.dataset.srv === 'replace') srvExport(true);
+  else if (b.dataset.srv === 'v2') { $('#btnV2').click(); srvExport(true); }
+});
+srvInit();
 
 /* ═══════════════════════════════════════════════════════════════════
    14. 자가 테스트  ?test=1
@@ -2070,6 +2549,39 @@ function selfTest() {
   eq('shader: 키 순서 마지막', Object.keys(buildManifest()).slice(-1), ['shader']);
   state.shader = { enabled: false, groups: [] };
   eq('shader 꺼짐 → 키 없음', 'shader' in buildManifest(), false);
+
+  // ── id 규칙 · 분류 ──
+  eq('id: 규칙 id 읽기', parseAssetId('fur-tv-stand-00012'), { code: 'fur', category: 'furniture', slug: 'tv-stand', serial: 12 });
+  eq('id: 옛 id는 규칙 밖', parseAssetId('furniture-chair-01'), null);
+  eq('id: 4자리 번호는 규칙 밖', parseAssetId('fur-chair-0001'), null);
+  eq('id: 6자리 넘침도 읽힘', parseAssetId('map-floor-123456')?.serial, 123456);
+  eq('id: 만들기', formatAssetId('map', 'floor', 3), 'map-floor-00003');
+  const TX = { groups: [{ id: 'seating', category: 'furniture', types: [{ id: 'armchair' }] }, { id: 'floor', category: 'map', types: [{ id: 'wood' }] }], tags: [{ id: 'cozy' }] };
+  eq('분류: 폴더에서 type 추측', typeFromPath('furniture/seating/armchair/x.png', 'furniture', '', TX), 'armchair');
+  eq('분류: 맵은 kind에 맞는 type만', [isKnownType('map', 'floor', 'wood', TX), isKnownType('map', 'wall', 'wood', TX)], [true, false]);
+  state.form = { ...blankForm(), id: 'fur-armchair-00001', nameKo: 'X', nameEn: 'X', w: 2, h: 1 };
+  eq('분류: 비었으면 type·tags 키 없음', ['type' in buildManifest(), 'tags' in buildManifest()], [false, false]);
+  state.form.type = 'armchair'; state.form.tags = ['cozy'];
+  eq('분류: 키 순서 category 다음', Object.keys(buildManifest()).slice(3, 6), ['category', 'type', 'tags']);
+  applyManifest({ id: 'a', category: 'furniture', type: 'sofa', tags: ['x', 'x', 3] }, '');
+  eq('분류: 불러오기 (tags 중복·형식 정리)', [state.form.type, state.form.tags], ['sofa', ['x']]);
+  eq('분류: extras로 새지 않음', ['type' in state.extras, 'tags' in state.extras], [false, false]);
+
+  // ── 막힌 칸 (blockCells) ──
+  eq('막힌 칸: 중복·점유 칸 안·형식 오류 제거 + 정렬', normBlockCells([[1, -1], [0, 0], [0, -1], [1, -1], [1.5, 2], 'x', [-1, 0]], 2, 1), [[0, -1], [1, -1], [-1, 0]]);
+  eq('막힌 칸: 반전이면 a↔b', faceBlock([[0, -1], [3, -2]], true), [[-1, 0], [-2, 3]]);
+  eq('막힌 칸: 반전 두 번 = 원래대로', faceBlock(faceBlock([[2, -1]], true), true), [[2, -1]]);
+  eq('막힌 칸: 후보에 점유 칸 없음', blockCandidates(48, 64, 4, 2, S).some(([a, b]) => inFoot(a, b, 4, 2)), false);
+  eq('막힌 칸: 키 그림이면 뒤쪽 칸 [0,-1]이 후보', blockCandidates(48, 64, 4, 2, S).some(([a, b]) => a === 0 && b === -1), true);
+  state.form = { ...blankForm(), id: 'furniture-x', nameKo: 'X', nameEn: 'X', w: 2, h: 1, blockCells: [[0, -1], [1, 0], [1, -1]] };
+  eq('막힌 칸: 매니페스트에는 점유 칸 밖만', buildManifest().blockCells, [[0, -1], [1, -1]]);
+  eq('막힌 칸: 키 순서 flat 다음', Object.keys(buildManifest()).indexOf('blockCells') > Object.keys(buildManifest()).indexOf('h'), true);
+  state.form.flat = true;
+  eq('막힌 칸: flat이면 안 적음', 'blockCells' in buildManifest(), false);
+  state.form = { ...blankForm(), id: 'furniture-x', nameKo: 'X', nameEn: 'X', w: 4, h: 2 };
+  applyManifest({ id: 'a', category: 'furniture', w: 2, h: 1, blockCells: [[0, -1], [0, 0]] }, '');
+  eq('막힌 칸: 불러오기 (점유 칸 안은 버림)', state.form.blockCells, [[0, -1]]);
+  eq('막힌 칸: extras로 새지 않음', 'blockCells' in state.extras, false);
 
   // ── 팔레트 (src/game/palette.js와 같은 결과여야 한다) ──
   eq('램프 BASE = 입력한 메인색', makeRamp('#A9764F')[2], '#A9764F');

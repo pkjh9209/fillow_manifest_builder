@@ -1,0 +1,14 @@
+{
+  "id": "fur-bed-double-00177",
+  "name": { "ko": "핑크 패브릭 더블 침대", "en": "pink upholstered double bed" },
+  "desc": { "ko": "침대 - PixelLab 오브젝트 + 뒷면(PixelLab 이미지 편집). 앞·뒤 + 좌우 반전 = 4방향", "en": "pink upholstered double bed - front + PixelLab-edited back, 4 directions with flip" },
+  "category": "furniture",
+  "type": "bed-double",
+  "acquisition": "default",
+  "qty": 1,
+  "w": 5,
+  "h": 8,
+  "flippable": true,
+  "back": "fur-bed-double-00177_back.png",
+  "pixellab": { "object_id": "a4a06e3d-6663-414c-b469-136f8d298601" }
+}

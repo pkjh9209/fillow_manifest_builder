@@ -1,0 +1,22 @@
+{
+  "id": "fur-armchair-00020",
+  "name": {
+    "ko": "1인 소파 08",
+    "en": "cream boucle round armchair"
+  },
+  "desc": {
+    "ko": "1인 소파 - PixelLab 오브젝트 + 뒷면(PixelLab 이미지 편집). 앞·뒤 + 좌우 반전 = 4방향",
+    "en": "cream boucle round armchair - front + PixelLab-edited back, 4 directions with flip"
+  },
+  "category": "furniture",
+  "type": "armchair",
+  "acquisition": "default",
+  "qty": 1,
+  "w": 3,
+  "h": 3,
+  "flippable": true,
+  "back": "fur-armchair-00020_back.png",
+  "pixellab": {
+    "object_id": "367de18e-2fa8-4c17-8a4c-a48184ab7a46"
+  }
+}

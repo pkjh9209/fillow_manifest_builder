@@ -1,0 +1,22 @@
+{
+  "id": "fur-armchair-00019",
+  "name": {
+    "ko": "1인 소파 07",
+    "en": "sage green armchair"
+  },
+  "desc": {
+    "ko": "1인 소파 - PixelLab 오브젝트 + 뒷면(PixelLab 이미지 편집). 앞·뒤 + 좌우 반전 = 4방향",
+    "en": "sage green armchair - front + PixelLab-edited back, 4 directions with flip"
+  },
+  "category": "furniture",
+  "type": "armchair",
+  "acquisition": "default",
+  "qty": 1,
+  "w": 3,
+  "h": 3,
+  "flippable": true,
+  "back": "fur-armchair-00019_back.png",
+  "pixellab": {
+    "object_id": "fb8460be-9474-47a4-8d29-e60b291796d1"
+  }
+}
